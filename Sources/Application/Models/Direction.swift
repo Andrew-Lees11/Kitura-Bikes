@@ -5,7 +5,8 @@
 //  Created by Andrew Lees on 21/09/2018.
 //
 
-public enum DIRECTION {
+public enum DIRECTION: String, Codable {
+    
     case UP
     case DOWN
     case LEFT
@@ -24,7 +25,7 @@ public enum DIRECTION {
         return LEFT;
     }
     
-    public static func isOppositeOf(dir: DIRECTION) -> Bool {
-        return this == DIRECTION.opposite(dir);
+    public func isOppositeOf(dir: DIRECTION) -> Bool {
+        return self == DIRECTION.opposite(dir: dir);
     }
 }

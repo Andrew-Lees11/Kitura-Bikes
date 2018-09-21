@@ -59,7 +59,7 @@ public class MovingObstacle: Obstacle {
         }
     }
     
-    public func move(board: [[Int]]) {
+    public func move(board: inout [[Int]]) {
         
         if (currentDelay + 1 < moveDelay) {
             // don't move yet

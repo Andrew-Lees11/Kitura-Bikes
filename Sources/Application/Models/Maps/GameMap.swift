@@ -16,7 +16,7 @@ public class GameMap {
         4: Smile(),
         5: HulkSmash()]
     
-    public static func create(map: Int) -> GameMap? {
+    public static func create(map: Int) -> GameMap {
         if map >= 0 && map < maps.count {
             return maps[Int(arc4random_uniform(UInt32(maps.count)))]
         } else {

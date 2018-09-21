@@ -9,6 +9,7 @@ public class GameBoard {
     
     public static let BOARD_SIZE = 121
     public static let SPOT_AVAILABLE = 0, TRAIL_SPOT_TAKEN = -10, OBJECT_SPOT_TAKEN = -8, PLAYER_SPOT_TAKEN = 1
+    private static var preferredPlayerSlots = [String: Int]()
     
     public class Point {
         public let x: Int
@@ -29,189 +30,166 @@ public class GameBoard {
     public var movingObstacles: Set<MovingObstacle>
     public var players: Set<Player>
     private var takenPlayerSlots: [Bool]
-    private let GameMap: GameMap
+    private let gameMap: GameMap
     
     
-    public init(map: Int) {
+    public init(map: Int = -1) {
         for i in 0..<GameBoard.BOARD_SIZE {
-            initializeGameMap(map);
+            for j in 0..<GameBoard.BOARD_SIZE {
+                board[i][j] = GameBoard.SPOT_AVAILABLE
+            }
+        }
+        self.gameMap = GameMap.create(map: map)
+        for o in gameMap.obstacles {
+            let _ = addObstacle(o)
+        }
+        for o in gameMap.movingObstacles {
+            let _ = addObstacle(o);
+        }
+    }
+    
+    public func verifyObstacle(_ o: Obstacle) -> Bool {
+        if (o.x < 0 || o.y < 0 || o.x + o.width > GameBoard.BOARD_SIZE || o.y + o.height > GameBoard.BOARD_SIZE) {
+            return false
+        }
+        // First make sure all spaces are available
+        for x in 0..<o.width {
+            for y in 0..<o.height {
+                if (board[o.x + x][o.y + y] != GameBoard.SPOT_AVAILABLE) {
+                    return false
+                }
+            }
+        }
+        // If all spaces are available, claim them
+        for x in 0..<o.width {
+            for y in 0..<o.height {
+                board[o.x + x][o.y + y] = GameBoard.OBJECT_SPOT_TAKEN
+                return true
+            }
+        }
+    }
+    
+    public func addObstacle(_ o: Obstacle) -> Bool {
+        return verifyObstacle(o) ? obstacles.insert(o).inserted : false;
+    }
+    
+    public func addObstacle(o: MovingObstacle) -> Bool {
+        return verifyObstacle(o) ? movingObstacles.insert(o).inserted : false;
+    }
+    
+    public func addPlayer(playerId: String, playerName: String) -> Player? {
+    
+        var playerNum = -1
+        
+        // Try to keep players in the same slots across rounds if possible
+        if let preferredSlot = GameBoard.preferredPlayerSlots[playerId],
+               !takenPlayerSlots[preferredSlot]
+        {
+            playerNum = preferredSlot;
+        } else {
+            // Find first open player slot to fill, which determines position
+            for i in 0..<takenPlayerSlots.count {
+                if (!takenPlayerSlots[i]) {
+                    playerNum = i;
+                    break;
+                }
+            }
+            GameBoard.preferredPlayerSlots[playerId] = playerNum
+        }
+        takenPlayerSlots[playerNum] = true
+        
+        // Don't let the preferred player slot map take up too much memory
+        if (GameBoard.preferredPlayerSlots.count > 1000) {
+            GameBoard.preferredPlayerSlots = [:]
+        }
+        
+        // Initialize Player
+        guard let p = Player(id: playerId, name: playerName, playerNum: playerNum)?.addTo(map: gameMap) else {
+            return nil
+        }
+        
+        if (p.x + p.width > GameBoard.BOARD_SIZE || p.y + p.height > GameBoard.BOARD_SIZE) {
+            return nil
+        }
+        
+        
+        for i in 0..<p.width {
+            for j in 0..<p.height {
+                board[p.x + i][p.y + j] = GameBoard.PLAYER_SPOT_TAKEN + playerNum
+            }
+        }
+        
+        return players.insert(p).memberAfterInsert
+    }
+    
+    public func removePlayer(_ p: Player) -> Bool {
+        takenPlayerSlots[p.playerNum] = false
+        
+        // Right now we don't clear their dead body while drawing the canvas
+        //        for (int i = 0; i < p.width; i++) {
+        //            for (int j = 0; j < p.height; j++) {
+        //                board[p.x + i][p.y + j] = SPOT_AVAILABLE;
+        //            }
+        //        }
+        
+        return players.remove(p) != nil
+    }
+    
+    public func moveObjects() -> Bool {
+        if movingObstacles.isEmpty {
+            return false
         }
     
-    private void initializeGameMap(int map) {
-    gameMap = GameMap.create(map);
-    for (Obstacle o : gameMap.getObstacles()) {
-    addObstacle(o);
-    }
-    for (MovingObstacle o : gameMap.getMovingObstacles()) {
-    addObstacle(o);
-    }
-    }
-    
-    public boolean verifyObstacle(Obstacle o) {
-    if (o.x < 0 || o.y < 0 || o.x + o.width > BOARD_SIZE || o.y + o.height > BOARD_SIZE)
-    throw new IllegalArgumentException("Obstacle does not fit on board: " + o);
-    
-    // First make sure all spaces are available
-    for (int x = 0; x < o.width; x++)
-    for (int y = 0; y < o.height; y++)
-    if (board[o.x + x][o.y + y] != SPOT_AVAILABLE) {
-    System.out.println("Obstacle cannot be added to board because spot [" + o.x + x + "][" + o.y + y + "] is taken.");
-    return false;
+        for obstacle in movingObstacles {
+            obstacle.checkCollision(board: board)
+        }
+        
+        for obstacle in movingObstacles {
+            obstacle.move(board: &board)
+        }
+        
+        return true;
     }
     
-    // If all spaces are available, claim them
-    for (int x = 0; x < o.width; x++)
-    for (int y = 0; y < o.height; y++)
-    board[o.x + x][o.y + y] = OBJECT_SPOT_TAKEN;
-    return true;
+    public func broadcastToAI() {
+        for p in players {
+            if p.isAlive {
+                p.processAIMove(board: board)
+            }
+        }
     }
     
-    public boolean addObstacle(Obstacle o) {
-    return verifyObstacle(o) ? obstacles.add(o) : false;
+    public func addAI() {
+        // Find first open player slot to fill, which determines position
+        var playerNum = -1
+        for i in 0 ..< takenPlayerSlots.count {
+            if (!takenPlayerSlots[i]) {
+                playerNum = i
+                takenPlayerSlots[i] = true
+                break
+            }
+        }
+    
+        // Initialize Player
+        let ai = AI(map: gameMap, playerNum: playerNum).asPlayer()
+        let npc = ai.addTo(map: gameMap)
+        
+        if (npc.x + npc.width > GameBoard.BOARD_SIZE || npc.y + npc.height > GameBoard.BOARD_SIZE) {
+            print("Player does not fit on board: " + npc.id)
+        }
+        
+        for i in 0 ..< npc.width {
+            for j in 0 ..< npc.height {
+                board[npc.x + i][npc.y + j] = GameBoard.PLAYER_SPOT_TAKEN + playerNum
+            }
+        }
+        
+        players.insert(npc)
     }
     
-    public boolean addObstacle(MovingObstacle o) {
-    return verifyObstacle(o) ? movingObstacles.add(o) : false;
-    }
-    
-    public Player addPlayer(String playerId, String playerName) {
-    
-    short playerNum = -1;
-    
-    // Try to keep players in the same slots across rounds if possible
-    Short preferredSlot = preferredPlayerSlots.get(playerId);
-    if (preferredSlot != null && !takenPlayerSlots[preferredSlot]) {
-    playerNum = preferredSlot;
-    } else {
-    // Find first open player slot to fill, which determines position
-    for (short i = 0; i < takenPlayerSlots.length; i++) {
-    if (!takenPlayerSlots[i]) {
-    playerNum = i;
-    break;
-    }
-    }
-    preferredPlayerSlots.put(playerId, playerNum);
-    }
-    takenPlayerSlots[playerNum] = true;
-    
-    // Don't let the preferred player slot map take up too much memory
-    if (preferredPlayerSlots.size() > 1000)
-    preferredPlayerSlots.clear();
-    
-    // Initialize Player
-    Player p = new Player(playerId, playerName, playerNum).addTo(gameMap);
-    
-    if (p.x + p.width > BOARD_SIZE || p.y + p.height > BOARD_SIZE)
-    throw new IllegalArgumentException("Player does not fit on board: " + p);
-    
-    for (int i = 0; i < p.width; i++) {
-    for (int j = 0; j < p.height; j++) {
-    board[p.x + i][p.y + j] = (short) (PLAYER_SPOT_TAKEN + playerNum);
-    }
-    }
-    
-    return players.add(p) ? p : null;
-    }
-    
-    public boolean removePlayer(Player p) {
-    takenPlayerSlots[p.getPlayerNum()] = false;
-    
-    // Right now we don't clear their dead body while drawing the canvas
-    //        for (int i = 0; i < p.width; i++) {
-    //            for (int j = 0; j < p.height; j++) {
-    //                board[p.x + i][p.y + j] = SPOT_AVAILABLE;
-    //            }
-    //        }
-    
-    return players.remove(p);
-    }
-    
-    // For debugging
-    public void dumpBoard() {
-    for (int i = 0; i < BOARD_SIZE; i++) {
-    StringBuilder row = new StringBuilder();
-    for (int j = 0; j < BOARD_SIZE; j++) {
-    switch (board[j][i]) {
-    
-    case (SPOT_AVAILABLE): {
-    row.append("-");
-    break;
-    }
-    case (OBJECT_SPOT_TAKEN): {
-    row.append("O");
-    break;
-    }
-    case (TRAIL_SPOT_TAKEN): {
-    row.append("X");
-    break;
-    }
-    default: {
-    row.append(board[j][i]);
-    break;
-    }
-    }
-    }
-    System.out.println(String.format("%03d %s", i, row.toString()));
-    }
-    }
-    
-    public boolean moveObjects() {
-    if (movingObstacles.isEmpty()) {
-    return false;
-    }
-    
-    for (MovingObstacle obstacle : movingObstacles) {
-    obstacle.checkCollision(board);
-    }
-    
-    for (MovingObstacle obstacle : movingObstacles) {
-    obstacle.move(board);
-    }
-    
-    return true;
-    }
-    
-    public void broadcastToAI() {
-    for (Player p : players) {
-    if (p.isAlive()) {
-    short[][] boardCopy = board.clone();
-    p.processAIMove(boardCopy);
-    }
-    }
-    }
-    
-    public void addAI() {
-    // Find first open player slot to fill, which determines position
-    short playerNum = -1;
-    for (short i = 0; i < takenPlayerSlots.length; i++) {
-    if (!takenPlayerSlots[i]) {
-    playerNum = i;
-    takenPlayerSlots[i] = true;
-    break;
-    }
-    }
-    
-    // Initialize Player
-    Player p = Math.random() < 0.5 ? //
-    new Hal(gameMap, playerNum).asPlayer() : //
-    new Wally(gameMap, playerNum).asPlayer();
-    p.addTo(gameMap);
-    
-    if (p.x + p.width > BOARD_SIZE || p.y + p.height > BOARD_SIZE)
-    throw new IllegalArgumentException("Player does not fit on board: " + p);
-    
-    for (int i = 0; i < p.width; i++) {
-    for (int j = 0; j < p.height; j++) {
-    board[p.x + i][p.y + j] = (short) (PLAYER_SPOT_TAKEN + playerNum);
-    }
-    }
-    
-    players.add(p);
-    }
-    
-    public boolean removeAI(Player p) {
-    takenPlayerSlots[p.getPlayerNum()] = false;
-    return players.remove(p);
+    public func removeAI(_ p: Player) -> Bool {
+        takenPlayerSlots[p.playerNum] = false
+        return players.remove(p) != nil
     }
     
 }

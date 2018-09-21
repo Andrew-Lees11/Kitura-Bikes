@@ -52,6 +52,9 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		ED11A0632154CE3E00B94CCD /* Player.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED11A0622154CE3E00B94CCD /* Player.swift */; };
+		ED11A0652154CFB700B94CCD /* AI.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED11A0642154CFB700B94CCD /* AI.swift */; };
+		ED11A0672154EAB300B94CCD /* OutboundMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED11A0662154EAB300B94CCD /* OutboundMessage.swift */; };
 		OBJ_1000 /* IncomingSocketManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_332 /* IncomingSocketManager.swift */; };
 		OBJ_1001 /* IncomingSocketProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_333 /* IncomingSocketProcessor.swift */; };
 		OBJ_1002 /* IncomingSocketProcessorCreator.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_334 /* IncomingSocketProcessorCreator.swift */; };
@@ -2469,6 +2472,9 @@
 		"CloudFoundryEnv::CloudFoundryEnv::Product" /* CloudFoundryEnv.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = CloudFoundryEnv.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		"Configuration::Configuration::Product" /* Configuration.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Configuration.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		"Cryptor::Cryptor::Product" /* Cryptor.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Cryptor.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		ED11A0622154CE3E00B94CCD /* Player.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Player.swift; sourceTree = "<group>"; };
+		ED11A0642154CFB700B94CCD /* AI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AI.swift; sourceTree = "<group>"; };
+		ED11A0662154EAB300B94CCD /* OutboundMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutboundMessage.swift; sourceTree = "<group>"; };
 		"FileKit::FileKit::Product" /* FileKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = FileKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		"Health::Health::Product" /* Health.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Health.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		"HeliumLogger::HeliumLogger::Product" /* HeliumLogger.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = HeliumLogger.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -3358,6 +3364,9 @@
 				OBJ_16 /* Maps */,
 				OBJ_24 /* MovingObstacle.swift */,
 				OBJ_25 /* Obstacle.swift */,
+				ED11A0622154CE3E00B94CCD /* Player.swift */,
+				ED11A0642154CFB700B94CCD /* AI.swift */,
+				ED11A0662154EAB300B94CCD /* OutboundMessage.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -5822,9 +5831,12 @@
 				OBJ_418 /* HulkSmash.swift in Sources */,
 				OBJ_419 /* OriginalMap.swift in Sources */,
 				OBJ_420 /* Smile.swift in Sources */,
+				ED11A0672154EAB300B94CCD /* OutboundMessage.swift in Sources */,
 				OBJ_421 /* MovingObstacle.swift in Sources */,
 				OBJ_422 /* Obstacle.swift in Sources */,
 				OBJ_423 /* HealthRoutes.swift in Sources */,
+				ED11A0632154CE3E00B94CCD /* Player.swift in Sources */,
+				ED11A0652154CFB700B94CCD /* AI.swift in Sources */,
 				OBJ_424 /* RoundRoutes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
