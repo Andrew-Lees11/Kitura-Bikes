@@ -1,0 +1,3 @@
+.build/							usr/src/Kitura-bikes
+terraform/scripts/install.sh	usr/src/Kitura-bikes
+terraform/scripts/start.sh		usr/src/Kitura-bikes
