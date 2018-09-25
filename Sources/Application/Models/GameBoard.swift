@@ -5,13 +5,13 @@
 //  Created by Andrew Lees on 21/09/2018.
 //
 
-public class GameBoard {
+public class GameBoard: Codable {
     
     public static let BOARD_SIZE = 121
     public static let SPOT_AVAILABLE = 0, TRAIL_SPOT_TAKEN = -10, OBJECT_SPOT_TAKEN = -8, PLAYER_SPOT_TAKEN = 1
     private static var preferredPlayerSlots = [String: Int]()
     
-    public class Point {
+    public class Point: Codable {
         public let x: Int
         public let y: Int
         

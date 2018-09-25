@@ -6,7 +6,7 @@
 //
 import Foundation
 
-public class GameMap {
+public class GameMap: Codable {
     
     public static let maps: [Int: GameMap] =
         [0: EmptyMap(),

@@ -7,82 +7,71 @@
 
 import Foundation
 
-public class OutboundMessage {
+public class OutboundMessage: Codable {
     
     public class PlayerList: Codable {
         public let playerlist: [Player]
         
-        public init(players: [Player]) {
+        public init(players: Set<Player>) {
+            var tempList = [Player]()
             // Send players in proper order, padding out empty slots with "Bot Player"
             for player in players {
-                playerlist[player.playerNum] = player
+                tempList[player.playerNum] = player
             }
             for i in 0..<Player.MAX_PLAYERS {
-                if playerlist[i] == nil {
-                    playerlist[i] = Player("", "Bot Player", (short) i);
+                if tempList.indices.contains(i) {
+                    tempList.append(Player(id: "", name: "BotPlayer", playerNum: i)!)
                 }
             }
+            self.playerlist = tempList
         }
     }
     
-    public static class GameStatus {
-        @JsonbProperty("gameStatus")
-        public final String gameStatus;
+    public struct GameStatus: Codable {
+        public let gameStatus: String
+    }
+    
+    public struct RequeueGame: Codable {
+        public let requeue: String
         
-        public GameStatus(GameRound.State status) {
-        this.gameStatus = status.toString();
+        public init(nextRoundId: String) {
+            self.requeue = nextRoundId
         }
     }
     
-    public static class RequeueGame {
-        @JsonbProperty("requeue")
-        public final String roundId;
+    public struct StartingCountdown: Codable {
+        public let countdown: Int
         
-        public RequeueGame(String nextRoundId) {
-        this.roundId = nextRoundId;
+        public init(startingSeconds: Int) {
+            self.countdown = startingSeconds;
         }
     }
     
-    public static class StartingCountdown {
-        @JsonbProperty("countdown")
-        public final int seconds;
+    public struct AwaitPlayersCountdown: Codable {
+        public let awaitplayerscountdown: Int
         
-        public StartingCountdown(int startingSeconds) {
-        this.seconds = startingSeconds;
+        public init(remainingPlayerAwaitTime: Int) {
+            self.awaitplayerscountdown = remainingPlayerAwaitTime
         }
     }
     
-    public static class AwaitPlayersCountdown {
-        @JsonbProperty("awaitplayerscountdown")
-        public final int seconds;
+    public struct Heartbeat: Codable {
+        public let keepAlive = true
+    }
+    
+    public struct QueuePosition: Codable {
+        public let queuePosition: Int
         
-        public AwaitPlayersCountdown(int remainingPlayerAwaitTime) {
-        this.seconds = remainingPlayerAwaitTime;
+        public init(pos: Int) {
+            queuePosition = pos
         }
     }
     
-    public static class Heartbeat {
-        @JsonbProperty("keepAlive")
-        public final boolean keepAlive = true;
+    public struct ErrorEvent: Codable {
+        public let errorMessage: String
         
-        public Heartbeat() {}
-    }
-    
-    public static class QueuePosition {
-        @JsonbProperty("queuePosition")
-        public final int queuePosition;
-        
-        public QueuePosition(int pos) {
-        queuePosition = pos;
-        }
-    }
-    
-    public static class ErrorEvent {
-        @JsonbProperty("errorMessage")
-        public final String msg;
-        
-        public ErrorEvent(String errMsg) {
-        msg = errMsg;
+        public init(errMsg: String) {
+            self.errorMessage = errMsg;
         }
     }
     

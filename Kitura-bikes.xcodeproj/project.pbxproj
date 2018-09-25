@@ -55,6 +55,8 @@
 		ED11A0632154CE3E00B94CCD /* Player.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED11A0622154CE3E00B94CCD /* Player.swift */; };
 		ED11A0652154CFB700B94CCD /* AI.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED11A0642154CFB700B94CCD /* AI.swift */; };
 		ED11A0672154EAB300B94CCD /* OutboundMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED11A0662154EAB300B94CCD /* OutboundMessage.swift */; };
+		ED11A0692155DDD200B94CCD /* Client.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED11A0682155DDD200B94CCD /* Client.swift */; };
+		ED11A06B2155DFB200B94CCD /* InboundMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED11A06A2155DFB200B94CCD /* InboundMessage.swift */; };
 		OBJ_1000 /* IncomingSocketManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_332 /* IncomingSocketManager.swift */; };
 		OBJ_1001 /* IncomingSocketProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_333 /* IncomingSocketProcessor.swift */; };
 		OBJ_1002 /* IncomingSocketProcessorCreator.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_334 /* IncomingSocketProcessorCreator.swift */; };
@@ -2475,6 +2477,8 @@
 		ED11A0622154CE3E00B94CCD /* Player.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Player.swift; sourceTree = "<group>"; };
 		ED11A0642154CFB700B94CCD /* AI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AI.swift; sourceTree = "<group>"; };
 		ED11A0662154EAB300B94CCD /* OutboundMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutboundMessage.swift; sourceTree = "<group>"; };
+		ED11A0682155DDD200B94CCD /* Client.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Client.swift; sourceTree = "<group>"; };
+		ED11A06A2155DFB200B94CCD /* InboundMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboundMessage.swift; sourceTree = "<group>"; };
 		"FileKit::FileKit::Product" /* FileKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = FileKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		"Health::Health::Product" /* Health.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Health.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		"HeliumLogger::HeliumLogger::Product" /* HeliumLogger.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = HeliumLogger.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -3367,6 +3371,8 @@
 				ED11A0622154CE3E00B94CCD /* Player.swift */,
 				ED11A0642154CFB700B94CCD /* AI.swift */,
 				ED11A0662154EAB300B94CCD /* OutboundMessage.swift */,
+				ED11A0682155DDD200B94CCD /* Client.swift */,
+				ED11A06A2155DFB200B94CCD /* InboundMessage.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -5826,6 +5832,7 @@
 				OBJ_413 /* GameRound.swift in Sources */,
 				OBJ_414 /* CrossSlice.swift in Sources */,
 				OBJ_415 /* EmptyMap.swift in Sources */,
+				ED11A0692155DDD200B94CCD /* Client.swift in Sources */,
 				OBJ_416 /* FakeBlock.swift in Sources */,
 				OBJ_417 /* GameMap.swift in Sources */,
 				OBJ_418 /* HulkSmash.swift in Sources */,
@@ -5838,6 +5845,7 @@
 				ED11A0632154CE3E00B94CCD /* Player.swift in Sources */,
 				ED11A0652154CFB700B94CCD /* AI.swift in Sources */,
 				OBJ_424 /* RoundRoutes.swift in Sources */,
+				ED11A06B2155DFB200B94CCD /* InboundMessage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

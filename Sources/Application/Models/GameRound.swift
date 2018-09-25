@@ -7,9 +7,10 @@
 
 import Foundation
 import KituraWebSocket
+import Dispatch
 
 public class GameRound {
-    public enum State {
+    public enum State: String, Codable {
         case OPEN // not yet started, still room for players
         case FULL // not started, but no more room for players
         case STARTING // in the process of game starting countdown
@@ -31,17 +32,18 @@ public class GameRound {
     public var gameState: State = State.OPEN;
     public let board = GameBoard(map: -1);
     
-    private var gameRunning: Bool
-    private var paused: Bool
-    private var heartbeatStarted: Bool
-    //private final Map<Session, Client> clients = new HashMap<>();
-    private var playerRanks: [Player]
+    private var gameRunning: Bool = false
+    private var paused: Bool = false
+    private var heartbeatStarted: Bool = false
+    private var clients = [String: Client]()
+    private var playerRanks: [Player] = []
     //private final Set<LifecycleCallback> lifecycleCallbacks = new HashSet<>();
-    private let GAME_TICK_SPEED: Int
-    private let MAX_TIME_BETWEEN_ROUNDS: Int
+    private let GAME_TICK_SPEED: Int = GAME_TICK_SPEED_DEFAULT
+    private var MAX_TIME_BETWEEN_ROUNDS: Int = MAX_TIME_BETWEEN_ROUNDS_DEFAULT
     //private LobbyCountdown lobbyCountdown;
-    private var lobbyCountdownStarted: Bool
+    private var lobbyCountdownStarted: Bool = false
     private var ticksFromGameEnd = 0
+    private let encoder = JSONEncoder()
     
     // Get a string of 4 random uppercase letters (A-Z)
     private static func getRandomId() -> String {
@@ -69,385 +71,386 @@ public class GameRound {
             lobbyCountdownStarted = true
         }
         if (!isPhone) {
-            sendToClient(session, new OutboundMessage.AwaitPlayersCountdown(lobbyCountdown.roundStartCountdown));
+            let _ = try? session.send(message: encoder.encode(OutboundMessage.AwaitPlayersCountdown(remainingPlayerAwaitTime: MAX_TIME_BETWEEN_ROUNDS)))
         }
     }
     
-    public void updatePlayerDirection(Session playerSession, InboundMessage msg) {
-    Client c = clients.get(playerSession);
-    c.player.ifPresent((p) -> p.setDirection(msg.direction));
+    public func updatePlayerDirection(session: WebSocketConnection, msg: InboundMessage) {
+        let client = clients[session.id]
+        if let player = client?.player {
+            player.setDirection(newDirection: msg.direction)
+        }
     }
     
-    public boolean addPlayer(Session s, String playerId, String playerName, Boolean hasGameBoard) {
-    // Front end should be preventing a player joining a full game but
-    // defensive programming
-    if (!isOpen()) {
-    log("Cannot add player " + playerId + " to game because game has already started.");
-    return false;
+    public func addPlayer(session: WebSocketConnection, playerId: String, playerName: String, hasGameBoard: Bool) -> Bool {
+        // Front end should be preventing a player joining a full game but
+        // defensive programming
+        if (!isOpen()) {
+            print("Cannot add player " + playerId + " to game because game has already started.")
+            return false
+        }
+    
+        if playerId.isEmpty {
+            print("Player must have a valid ID to join a round, but was null/empty.");
+            return false;
+        }
+        
+        for client in clients.values {
+            if let player = client.player, playerId == player.id {
+                print("Cannot add player " + playerId + " to game because a player with that ID is already in the game.");
+                return false;
+            }
+        
+            if board.players.count + 1 >= Player.MAX_PLAYERS {
+                gameState = State.FULL
+                gameFull()
+            }
+            
+            let player = board.addPlayer(playerId: playerId, playerName: playerName)
+            if let player = player {
+                let client = Client(webSocketConnection: session, player: player, autoRequeue: false)
+                client.isPhone = !hasGameBoard
+                clients[client.session.id] = client
+                print("Player " + playerId + " has joined.")
+            } else {
+                print("Player " + playerId + " already exists.")
+            }
+            broadcastPlayerList()
+            broadcastGameBoard()
+            beginHeartbeat()
+            beginLobbyCountdown(session: session, isPhone: client.isPhone)
+        }
+        return true
     }
     
-    if (playerId == null || playerId.isEmpty()) {
-    log("Player must have a valid ID to join a round, but was null/empty.");
-    return false;
+    public func addAI() {
+        if (!isOpen()) {
+            return
+        }
+        
+        if (board.players.count + 1 >= Player.MAX_PLAYERS) {
+            gameState = State.FULL;
+        }
+        
+        board.addAI();
+        broadcastPlayerList();
+        broadcastGameBoard();
     }
     
-    for (Client c : clients.values())
-    if (c.player.isPresent() && playerId.equals(c.player.get().id)) {
-    log("Cannot add player " + playerId + " to game because a player with that ID is already in the game.");
-    return false;
+    public func addSpectator(session: WebSocketConnection) {
+        print("A spectator has joined.")
+        clients[session.id] = Client(webSocketConnection: session)
+        do {
+            try session.send(message: encoder.encode(OutboundMessage.PlayerList(players: board.players)))
+            try session.send(message: encoder.encode(board))
+        } catch {
+            print("failed to encode to json")
+        }
+        beginHeartbeat();
+        beginLobbyCountdown(session: session, isPhone: false);
     }
     
-    if (getPlayers().size() + 1 >= Player.MAX_PLAYERS) {
-    gameState = State.FULL;
-    lobbyCountdown.gameFull();
+//    public func addCallback(callback: LifecycleCallback) {
+//        LifecycleCallback.add(callback);
+//    }
+    
+    private func beginHeartbeat() {
+        
     }
     
-    Player p = board.addPlayer(playerId, playerName);
-    boolean isPhone = false;
-    if (p != null) {
-    Client c = new Client(s, p);
-    isPhone = c.isPhone = hasGameBoard ? false : true;
-    clients.put(s, c);
-    log("Player " + playerId + " has joined.");
-    } else {
-    log("Player " + playerId + " already exists.");
-    }
-    broadcastPlayerList();
-    broadcastGameBoard();
-    beginHeartbeat();
-    beginLobbyCountdown(s, isPhone);
-    return true;
+    public func isPlayer(session: WebSocketConnection) -> Bool {
+        let client = clients[session.id]
+        return client?.player != nil
     }
     
-    public void addAI() {
-    if (!isOpen()) {
-    return;
+    private func removePlayer(p: Player) {
+        p.disconnect();
+        print(p.name + " disconnected.");
+    
+        // Open player slot for new joiners
+        if gameState == State.FULL, board.players.count - 1 < Player.MAX_PLAYERS {
+            gameState = State.OPEN;
+        }
+    
+        if (isOpen()) {
+            let _ = board.removePlayer(p)
+        } else if (gameState == State.RUNNING) {
+            checkForWinner()
+        }
+        
+        if (gameState != State.FINISHED) {
+            broadcastPlayerList()
+        }
     }
     
-    if (getPlayers().size() + 1 >= Player.MAX_PLAYERS) {
-    gameState = State.FULL;
+    public func removeClient(session: WebSocketConnection) -> Int {
+        if let client = clients[session.id], let player = client.player {
+            removePlayer(p: player)
+        }
+        return clients.count
     }
     
-    board.addAI();
-    broadcastPlayerList();
-    broadcastGameBoard();
+//    public func getPlayers() -> Set<Player> {
+//        return board.players
+//    }
+    
+    public func run() {
+        gameRunning = true
+        print(">>> Starting round");
+        ticksFromGameEnd = 0;
+        GameRound.runningGames += 1
+        let numGames = GameRound.runningGames
+        if (numGames > 3) {
+            print("WARNING: There are currently " + String(numGames) + " game instances running.");
+        }
+        var nextTick = Date().addingTimeInterval(Double(GAME_TICK_SPEED) * 0.001)
+        
+        while (gameRunning) {
+            delayTo(wakeUpTime: nextTick)
+            nextTick = nextTick.addingTimeInterval(Double(GAME_TICK_SPEED) * 0.001)
+            gameTick()
+            if (ticksFromGameEnd > GameRound.DELAY_BETWEEN_ROUNDS) {
+                gameRunning = false // end the game if nobody can move anymore
+            }
+        }
+        endGame()
     }
     
-    public void addSpectator(Session s) {
-    log("A spectator has joined.");
-    clients.put(s, new Client(s));
-    sendToClient(s, new OutboundMessage.PlayerList(getPlayers()));
-    sendToClient(s, board);
-    beginHeartbeat();
-    beginLobbyCountdown(s, false);
+    private func updatePlayerStats() {
+        if (gameState != State.FINISHED) {
+            print("Canot update player stats while game is still running.")
+        }
+        //PlayerService playerSvc = CDI.current().select(PlayerService.class, RestClient.LITERAL).get();
+        var rank = 1
+        for p in playerRanks {
+            print("Player \(p.name) came in place \(rank)")
+            if (p.isRealPlayer()) {
+                //playerSvc.recordGame(p.id, rank)
+                rank += 1
+            }
+        }
     }
     
-    public void addCallback(LifecycleCallback callback) {
-    lifecycleCallbacks.add(callback);
+    private func gameTick() {
+        if (gameState != State.RUNNING) {
+            ticksFromGameEnd += 1
+            return;
+        }
+    
+        board.broadcastToAI();
+        
+        let boardUpdated = board.moveObjects()
+        var playerDied = false
+        var playersMoved = false
+        // Move all living players forward 1
+        for player in board.players {
+            if player.isAlive {
+                if (player.movePlayer(board: &board.board)) {
+                    playersMoved = true
+                } else {
+                    playerDied = true
+                    playerRanks.append(player)
+                }
+            }
+        }
+        
+        if playerDied {
+            checkForWinner()
+        }
+        if playersMoved || boardUpdated {
+            broadcastGameBoard()
+        }
+        if playerDied {
+            broadcastPlayerList()
+        }
     }
     
-    private void beginHeartbeat() {
-    // Send a heartbeat to connected clients every 100 seconds in an attempt to keep them connected.
-    // It appears that when running in IBM Cloud, sockets time out after 120 seconds
-    if (!heartbeatStarted.getAndSet(true)) {
-    ManagedScheduledExecutorService exec = executor();
-    if (exec != null) {
-    log("Initiating heartbeat to clients");
-    exec.schedule(() -> {
-    log("Sending heartbeat to " + clients.size() + " clients");
-    sendToClients(clients.keySet(), new OutboundMessage.Heartbeat());
-    }, new HeartbeatTrigger());
-    }
-    }
+    private func delayTo(wakeUpTime: Date) {
+        Thread.sleep(until: wakeUpTime)
     }
     
-    @JsonbTransient
-    public boolean isPlayer(Session s) {
-    Client c = clients.get(s);
-    return c != null && c.player.isPresent();
+    // delay for ms milliseconds
+    private func delay(_ ms: Int) {
+        if ms < 0 {
+            return
+        }
+        usleep(useconds_t(ms * 1000))
     }
     
-    private void removePlayer(Player p) {
-    p.disconnect();
-    log(p.name + " disconnected.");
-    
-    // Open player slot for new joiners
-    if (gameState == State.FULL && getPlayers().size() - 1 < Player.MAX_PLAYERS) {
-    gameState = State.OPEN;
+    private func getNonMobileSessions() -> [WebSocketConnection] {
+        return clients.values
+            .filter { $0.isPhone }
+            .map { $0.session }
     }
     
-    if (isOpen()) {
-    board.removePlayer(p);
-    } else if (gameState == State.RUNNING) {
-    checkForWinner();
+    private func broadcastTimeUntilGameStarts(time: Int) {
+        for session in getNonMobileSessions() {
+            let _ = try? session.send(message: encoder.encode(OutboundMessage.AwaitPlayersCountdown(remainingPlayerAwaitTime: time)))
+        }
     }
     
-    if (gameState != State.FINISHED)
-    broadcastPlayerList();
+    private func broadcastGameBoard() {
+        for session in getNonMobileSessions() {
+            let _ = try? session.send(message: encoder.encode(board))
+        }
     }
     
-    public int removeClient(Session client) {
-    Client c = clients.remove(client);
-    if (c != null && c.player.isPresent())
-    removePlayer(c.player.get());
-    return clients.size();
+    private func broadcastPlayerList() {
+        for session in getNonMobileSessions() {
+            let _ = try? session.send(message: encoder.encode(OutboundMessage.PlayerList(players: board.players)))
+        }
     }
     
-    @JsonbTransient
-    public Set<Player> getPlayers() {
-    return board.players;
+    private func checkForWinner() {
+        if (board.players.count < 2) {// 1 player game, no winner
+            gameState = State.FINISHED
+            return
+        }
+        var alivePlayers = 0
+        var alive: Player?
+        for cur in board.players {
+            if cur.isAlive {
+                alivePlayers += 1
+                alive = cur
+            }
+        }
+        if (alivePlayers == 1) {
+            alive?.setStatus(newState: .Winner)
+            playerRanks.append(alive!)
+            gameState = State.FINISHED
+        }
+        
+        if (alivePlayers == 0) {
+        gameState = State.FINISHED;
+        }
     }
     
-    @Override
-    public void run() {
-    gameRunning.set(true);
-    log(">>> Starting round");
-    ticksFromGameEnd = 0;
-    int numGames = runningGames.incrementAndGet();
-    if (numGames > 3)
-    log("WARNING: There are currently " + numGames + " game instances running.");
-    long nextTick = System.currentTimeMillis() + GAME_TICK_SPEED;
-    while (gameRunning.get()) {
-    delayTo(nextTick);
-    nextTick += GAME_TICK_SPEED;
-    gameTick();
-    if (ticksFromGameEnd > DELAY_BETWEEN_ROUNDS)
-    gameRunning.set(false); // end the game if nobody can move anymore
-    }
-    endGame();
+    public func isStarted() -> Bool {
+        return gameState != State.OPEN && gameState != State.FULL;
     }
     
-    private void updatePlayerStats() {
-    if (gameState != State.FINISHED)
-    throw new IllegalStateException("Canot update player stats while game is still running.");
-    
-    PlayerService playerSvc = CDI.current().select(PlayerService.class, RestClient.LITERAL).get();
-    int rank = 1;
-    for (Player p : playerRanks) {
-    log("Player " + p.name + " came in place " + rank);
-    if (p.isRealPlayer())
-    playerSvc.recordGame(p.id, rank);
-    rank++;
-    }
+    public func isOpen() -> Bool {
+        return gameState == State.OPEN;
     }
     
-    private void gameTick() {
-    if (gameState != State.RUNNING) {
-    ticksFromGameEnd++;
-    return;
+    public func startGame() {
+        if isStarted() {
+            return;
+        }
+    
+        while isOpen() {
+            addAI()
+        }
+    
+        // Issue a countdown to all of the clients
+        gameState = .STARTING
+        for client in clients.values {
+            let _ = try? client.session.send(message: encoder.encode(OutboundMessage.StartingCountdown(startingSeconds: GameRound.STARTING_COUNTDOWN)))
+        }
+        delay(GameRound.STARTING_COUNTDOWN * 1000)
+        
+        paused = false
+        for p in board.players {
+            if .Connected == p.playerStatus {
+                p.setStatus(newState: .Alive)
+                broadcastPlayerList()
+            }
+            if !gameRunning {
+//                ManagedScheduledExecutorService exec = executor();
+//                if (exec != null)
+//                exec.submit(this);
+            }
+        }
+        gameState = State.RUNNING;
     }
     
-    board.broadcastToAI();
-    
-    boolean boardUpdated = board.moveObjects();
-    boolean playerDied = false;
-    boolean playersMoved = false;
-    // Move all living players forward 1
-    for (Player p : getPlayers()) {
-    if (p.isAlive()) {
-    if (p.movePlayer(board.board)) {
-    playersMoved = true;
-    } else {
-    playerDied = true;
-    playerRanks.push(p);
-    }
-    }
-    }
-    
-    if (playerDied)
-    checkForWinner();
-    if (playersMoved || boardUpdated)
-    broadcastGameBoard();
-    if (playerDied)
-    broadcastPlayerList();
-    }
-    
-    private void delayTo(long wakeUpTime) {
-    delay(wakeUpTime - System.currentTimeMillis());
+    private func endGame() {
+        GameRound.runningGames -= 1
+        print("<<< Finished round");
+        broadcastPlayerList();
+        
+//        ManagedScheduledExecutorService exec = executor();
+//        if (exec != null) {
+//        exec.submit(() -> {
+//        updatePlayerStats();
+//        });
+//        exec.submit(() -> {
+//        lifecycleCallbacks.forEach(c -> c.gameEnding());
+//        });
+//        }
+        
+        // Tell each client that the game is done and close the websockets
+        for client in clients.values {
+            let _ = try? client.session.send(message: encoder.encode(OutboundMessage.GameStatus(gameStatus: State.FINISHED.rawValue)))
+            //sendToClient(s, new OutboundMessage.GameStatus(State.FINISHED));
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            for client in self.clients.values {
+                let _ = self.removeClient(session: client.session)
+            }
+        }
     }
     
-    private void delay(long ms) {
-    if (ms < 0)
-    return;
-    try {
-    Thread.sleep(ms);
-    } catch (InterruptedException ie) {
-    }
-    }
-    
-    private Set<Session> getNonMobileSessions() {
-    return clients.entrySet()
-    .stream()
-    .filter(c -> !c.getValue().isPhone)
-    .map(s -> s.getKey())
-    .collect(Collectors.toSet());
+//    private ManagedScheduledExecutorService executor() {
+//    try {
+//    return InitialContext.doLookup("java:comp/DefaultManagedScheduledExecutorService");
+//    } catch (NamingException e) {
+//    log("Unable to obtain ManagedScheduledExecutorService");
+//    e.printStackTrace();
+//    return null;
+//    }
+//    }
+//
+    private func log(msg: String) {
+        print("[GameRound- \(id) + ]  \(msg)");
     }
     
-    private void broadcastTimeUntilGameStarts(int time) {
-    sendToClients(getNonMobileSessions(), new OutboundMessage.AwaitPlayersCountdown(time));
-    }
     
-    private void broadcastGameBoard() {
-    sendToClients(getNonMobileSessions(), board);
+    public func gameFull() {
+        MAX_TIME_BETWEEN_ROUNDS = MAX_TIME_BETWEEN_ROUNDS > 5 ? GameRound.FULL_GAME_TIME_BETWEEN_ROUNDS : MAX_TIME_BETWEEN_ROUNDS
+        broadcastTimeUntilGameStarts(time: MAX_TIME_BETWEEN_ROUNDS)
     }
-    
-    private void broadcastPlayerList() {
-    sendToClients(getNonMobileSessions(), new OutboundMessage.PlayerList(getPlayers()));
+
+    public func lobbyCountdownRun() {
+        while isOpen() || gameState == State.FULL {
+            delay(1000);
+            MAX_TIME_BETWEEN_ROUNDS -= 1
+            if (MAX_TIME_BETWEEN_ROUNDS < 1) {
+                if (clients.count == 0) {
+                    print("No clients remaining.  Cancelling LobbyCountdown.")
+                    // Ensure that game state is closed off so that no other players can quick join while a round is marked for deletion
+                    gameState = State.FINISHED
+                } else {
+                    startGame()
+                }
+            }
+        }
     }
-    
-    private void checkForWinner() {
-    if (getPlayers().size() < 2) {// 1 player game, no winner
-    gameState = State.FINISHED;
-    return;
-    }
-    int alivePlayers = 0;
-    Player alive = null;
-    for (Player cur : getPlayers()) {
-    if (cur.isAlive()) {
-    alivePlayers++;
-    alive = cur;
-    }
-    }
-    if (alivePlayers == 1) {
-    alive.setStatus(STATUS.Winner);
-    playerRanks.push(alive);
-    gameState = State.FINISHED;
-    }
-    
-    if (alivePlayers == 0) {
-    gameState = State.FINISHED;
-    }
-    }
-    
-    @JsonbTransient
-    public boolean isStarted() {
-    return gameState != State.OPEN && gameState != State.FULL;
-    }
-    
-    @JsonbTransient
-    public boolean isOpen() {
-    return gameState == State.OPEN;
-    }
-    
-    public void startGame() {
-    if (isStarted())
-    return;
-    
-    while (isOpen()) {
-    addAI();
-    }
-    
-    // Issue a countdown to all of the clients
-    gameState = State.STARTING;
-    
-    sendToClients(clients.keySet(), new OutboundMessage.StartingCountdown(STARTING_COUNTDOWN));
-    delay(TimeUnit.SECONDS.toMillis(STARTING_COUNTDOWN));
-    
-    paused.set(false);
-    for (Player p : getPlayers())
-    if (STATUS.Connected == p.getStatus())
-    p.setStatus(STATUS.Alive);
-    broadcastPlayerList();
-    if (!gameRunning.get()) {
-    ManagedScheduledExecutorService exec = executor();
-    if (exec != null)
-    exec.submit(this);
-    }
-    gameState = State.RUNNING;
-    }
-    
-    private void endGame() {
-    runningGames.decrementAndGet();
-    log("<<< Finished round");
-    broadcastPlayerList();
-    
-    ManagedScheduledExecutorService exec = executor();
-    if (exec != null) {
-    exec.submit(() -> {
-    updatePlayerStats();
-    });
-    exec.submit(() -> {
-    lifecycleCallbacks.forEach(c -> c.gameEnding());
-    });
-    }
-    
-    // Tell each client that the game is done and close the websockets
-    for (Session s : clients.keySet())
-    sendToClient(s, new OutboundMessage.GameStatus(State.FINISHED));
-    
-    // Give players a 10s grace period before they are removed from a finished game
-    if (exec != null)
-    exec.schedule(() -> {
-    for (Session s : clients.keySet())
-    removeClient(s);
-    }, 10, TimeUnit.SECONDS);
-    }
-    
-    private ManagedScheduledExecutorService executor() {
-    try {
-    return InitialContext.doLookup("java:comp/DefaultManagedScheduledExecutorService");
-    } catch (NamingException e) {
-    log("Unable to obtain ManagedScheduledExecutorService");
-    e.printStackTrace();
-    return null;
-    }
-    }
-    
-    private void log(String msg) {
-    System.out.println("[GameRound-" + id + "]  " + msg);
-    }
-    
-    public interface LifecycleCallback {
-    public void gameEnding();
-    }
-    
-    private class LobbyCountdown implements Runnable {
-    
-    public int roundStartCountdown = MAX_TIME_BETWEEN_ROUNDS;
-    
-    public void gameFull() {
-    roundStartCountdown = roundStartCountdown > 5 ? FULL_GAME_TIME_BETWEEN_ROUNDS : roundStartCountdown;
-    broadcastTimeUntilGameStarts(roundStartCountdown);
-    }
-    
-    @Override
-    public void run() {
-    while (isOpen() || gameState == State.FULL) {
-    delay(1000);
-    roundStartCountdown--;
-    if (roundStartCountdown < 1) {
-    if (clients.size() == 0) {
-    log("No clients remaining.  Cancelling LobbyCountdown.");
-    // Ensure that game state is closed off so that no other players can quick join while a round is marked for deletion
-    gameState = State.FINISHED;
-    } else {
-    startGame();
-    }
-    }
-    }
-    }
-    }
-    
-    private class HeartbeatTrigger implements Trigger {
-    
-    private static final int HEARTBEAT_INTERVAL_SEC = 100;
-    
-    @Override
-    public Date getNextRunTime(LastExecution lastExecutionInfo, Date taskScheduledTime) {
-    // If there are any clients still connected to this game, keep sending heartbeats
-    if (clients.size() == 0) {
-    log("No clients remaining.  Cancelling heartbeat.");
-    // Ensure that game state is closed off so that no other players can quick join while a round is marked for deletion
-    gameState = State.FINISHED;
-    return null;
-    }
-    return Date.from(Instant.now().plusSeconds(HEARTBEAT_INTERVAL_SEC));
-    }
-    
-    @Override
-    public boolean skipRun(LastExecution lastExecutionInfo, Date scheduledRunTime) {
-    return clients.size() == 0;
-    }
-    
-    }
+
+//    private class HeartbeatTrigger implements Trigger {
+//
+//    private static final int HEARTBEAT_INTERVAL_SEC = 100;
+//
+//    @Override
+//    public Date getNextRunTime(LastExecution lastExecutionInfo, Date taskScheduledTime) {
+//    // If there are any clients still connected to this game, keep sending heartbeats
+//    if (clients.size() == 0) {
+//    log("No clients remaining.  Cancelling heartbeat.");
+//    // Ensure that game state is closed off so that no other players can quick join while a round is marked for deletion
+//    gameState = State.FINISHED;
+//    return null;
+//    }
+//    return Date.from(Instant.now().plusSeconds(HEARTBEAT_INTERVAL_SEC));
+//    }
+//
+//    @Override
+//    public boolean skipRun(LastExecution lastExecutionInfo, Date scheduledRunTime) {
+//    return clients.size() == 0;
+//    }
+//
+//    }
+}
+
+public protocol LifecycleCallback {
+    func gameEnding()
 }
