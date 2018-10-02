@@ -8,7 +8,7 @@
 import Foundation
 
 public class Player: Codable, Hashable {
-    public var hashValue: Int
+    
     
     public enum STATUS: String, Codable {
         case Connected
@@ -22,7 +22,8 @@ public class Player: Codable, Hashable {
     public static let PLAYER_COLORS = [ "#ABD155", "#6FC3DF", "#c178c9", "#f28415" ]; // green, blue, purple, orange
     public static let MAX_PLAYERS = PLAYER_COLORS.count;
     
-    // Properties exposed by JSON-B
+    public let stats = PlayerStats()
+    
     public let name: String
     public let id: String
     public let color: String
@@ -33,13 +34,13 @@ public class Player: Codable, Hashable {
     public var playerStatus = STATUS.Connected;
     
     public let playerNum: Int
-    var direction: DIRECTION
-    private var directionLastTick: [DIRECTION]
+    var direction: DIRECTION = .DOWN
+    private var directionLastTick = [DIRECTION]()
     private var desiredNextDirection: DIRECTION?
     
     public var ai: AI?
     
-    private var trail: [TrailPosition]
+    private var trail = [TrailPosition]()
     
     private struct TrailPosition: Codable, Hashable {
         public let x: Int
@@ -233,6 +234,30 @@ public class Player: Codable, Hashable {
         return self;
     }
     
+    public static func compareByWins(_ a: Player, _ b: Player) -> Int {
+        return a.stats.numWins - b.stats.numWins
+    }
+    
+    public static func compareByWinRatio(_ a: Player ,_ b: Player) -> Double {
+        return a.stats.winLossRatio - b.stats.winLossRatio
+    }
+    
+    public static func compareByRating(_ a: Player, _ b: Player) -> Int {
+        return a.stats.rating - b.stats.rating
+    }
+    
+    public static func compareOverall(_ a: Player ,_ b: Player) -> Int {
+        let rating = compareByRating(a, b)
+        if (rating != 0) {
+            return rating
+        }
+        let wins = compareByWins(a, b)
+        if (wins != 0) {
+            return wins
+        }
+        return Int(compareByWinRatio(a, b)*100)
+    }
+    
     public static func == (lhs: Player, rhs: Player) -> Bool {
         return lhs.name == rhs.name &&
             lhs.id == rhs.id &&
@@ -248,6 +273,10 @@ public class Player: Codable, Hashable {
             lhs.desiredNextDirection == rhs.desiredNextDirection &&
             lhs.ai == rhs.ai &&
             lhs.trail == rhs.trail
+    }
+    
+    public var hashValue: Int {
+        return "\(name)\(id)\(color)\(x)\(y)\(width)\(isAlive)\(playerStatus)\(playerNum)\(direction)\(directionLastTick)\(trail)".hashValue
     }
     
 }

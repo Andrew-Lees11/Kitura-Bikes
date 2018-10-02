@@ -10,6 +10,7 @@ import Foundation
 public class Smile: GameMap {
     
     public override init() {
+        super.init()
         obstacles.append(Obstacle(height: 12, width: 1, x: (GameBoard.BOARD_SIZE / 10) * 3, y: GameBoard.BOARD_SIZE / 3));
         obstacles.append(Obstacle(height: 12, width: 1, x: (GameBoard.BOARD_SIZE / 10) * 3, y: GameBoard.BOARD_SIZE / 3 + 12));
         obstacles.append(Obstacle(height: 1, width: 11, x: (GameBoard.BOARD_SIZE / 10) * 3, y: GameBoard.BOARD_SIZE / 3 + 1));
@@ -28,5 +29,9 @@ public class Smile: GameMap {
             obstacles.append(Obstacle(height: 1, width: 1, x: GameBoard.BOARD_SIZE / 4 - i, y: (GameBoard.BOARD_SIZE / 4) * 3 - i - 10));
             obstacles.append(Obstacle(height: 1, width: 1, x: GameBoard.BOARD_SIZE / 4 + i + (GameBoard.BOARD_SIZE / 4) * 2, y: (GameBoard.BOARD_SIZE / 4) * 3 - i - 10));
         }
+    }
+    
+    public required init(from decoder: Decoder) throws {
+        fatalError("init(from:) has not been implemented")
     }
 }

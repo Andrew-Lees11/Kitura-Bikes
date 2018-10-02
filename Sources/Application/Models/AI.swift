@@ -52,4 +52,21 @@ public class AI: Codable, Hashable {
         return p
     }
     
+    public var hashValue: Int {
+        return "\(startX)\(startY)\(width)\(takenSpotNumber)\(startDirection)\(lastDirection)\(x)\(y)\(hasMoved)".hashValue
+    }
+    
+    public static func == (lhs: AI, rhs: AI) -> Bool {
+        return lhs.startX == rhs.startX &&
+            lhs.startY == rhs.startY &&
+            lhs.height == rhs.height &&
+            lhs.width == rhs.width &&
+            lhs.takenSpotNumber == rhs.takenSpotNumber &&
+            lhs.startDirection == rhs.startDirection &&
+            lhs.direction == rhs.direction &&
+            lhs.lastDirection == rhs.lastDirection &&
+            lhs.x == rhs.x &&
+            lhs.y == rhs.y &&
+            lhs.hasMoved == rhs.hasMoved
+    }
 }

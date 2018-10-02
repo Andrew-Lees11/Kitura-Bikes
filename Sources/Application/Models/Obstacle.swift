@@ -7,7 +7,9 @@
 
 
 public class Obstacle: Codable, Hashable {
-    public var hashValue: Int
+    public var hashValue: Int {
+        return "\(height),\(width),\(x),\(y)".hashValue
+    }
     
     public static func == (lhs: Obstacle, rhs: Obstacle) -> Bool {
         return lhs.height == rhs.height &&

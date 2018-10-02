@@ -18,14 +18,14 @@ public class GameMap: Codable {
     
     public static func create(map: Int) -> GameMap {
         if map >= 0 && map < maps.count {
-            return maps[Int(arc4random_uniform(UInt32(maps.count)))]
+            return maps[Int(arc4random_uniform(UInt32(maps.count)))] ?? EmptyMap()
         } else {
-            return maps[map]
+            return maps[map] ?? EmptyMap()
         }
     }
     
     public var obstacles = [Obstacle]()
     public var movingObstacles = [MovingObstacle]()
     public var startingDirections = [DIRECTION.RIGHT, DIRECTION.DOWN, DIRECTION.UP, DIRECTION.LEFT]
-    public var startingPoints: [GameBoard.Point] = [Point(9, 9), Point(GameBoard.BOARD_SIZE - 11, 9), Point(9, GameBoard.BOARD_SIZE - 11), Point(GameBoard.BOARD_SIZE - 11, GameBoard.BOARD_SIZE - 11)]
+    public var startingPoints: [GameBoard.Point] = [GameBoard.Point(x: 9, y: 9), GameBoard.Point(x: GameBoard.BOARD_SIZE - 11, y: 9), GameBoard.Point(x: 9, y: GameBoard.BOARD_SIZE - 11), GameBoard.Point(x: GameBoard.BOARD_SIZE - 11, y: GameBoard.BOARD_SIZE - 11)]
 }

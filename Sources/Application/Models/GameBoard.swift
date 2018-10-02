@@ -15,9 +15,11 @@ public class GameBoard: Codable {
         public let x: Int
         public let y: Int
         
-        public init?(x: Int, y: Int) {
+        public init(x: Int, y: Int) {
             guard x < 0 || y < 0 || x >= BOARD_SIZE || y >= BOARD_SIZE else {
-                return nil
+                self.x = 0
+                self.y = 0
+                return
             }
             self.x = x
             self.y = y
@@ -26,10 +28,10 @@ public class GameBoard: Codable {
     
     var board = [[Int]]()
     
-    public var obstacles: Set<Obstacle>
-    public var movingObstacles: Set<MovingObstacle>
-    public var players: Set<Player>
-    private var takenPlayerSlots: [Bool]
+    public var obstacles = Set<Obstacle>()
+    public var movingObstacles = Set<MovingObstacle>()
+    public var players = Set<Player>()
+    private var takenPlayerSlots = [Bool]()
     private let gameMap: GameMap
     
     
@@ -64,16 +66,16 @@ public class GameBoard: Codable {
         for x in 0..<o.width {
             for y in 0..<o.height {
                 board[o.x + x][o.y + y] = GameBoard.OBJECT_SPOT_TAKEN
-                return true
             }
         }
+        return true
     }
     
     public func addObstacle(_ o: Obstacle) -> Bool {
         return verifyObstacle(o) ? obstacles.insert(o).inserted : false;
     }
     
-    public func addObstacle(o: MovingObstacle) -> Bool {
+    public func addObstacle(_ o: MovingObstacle) -> Bool {
         return verifyObstacle(o) ? movingObstacles.insert(o).inserted : false;
     }
     

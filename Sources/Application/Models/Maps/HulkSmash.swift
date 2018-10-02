@@ -8,16 +8,17 @@
 import Foundation
 
 public class HulkSmash: GameMap {
-    public init() {
+    public override init() {
+        super.init()
         createPair(x: 10, y: 10);
-        createPair(30, GameBoard.BOARD_SIZE / 2 - 5);
-        createPair(10, GameBoard.BOARD_SIZE - 20);
+        createPair(x: 30, y: GameBoard.BOARD_SIZE / 2 - 5);
+        createPair(x: 10, y: GameBoard.BOARD_SIZE - 20);
         
         self.startingPoints = [
-            GameBoard.Point(GameBoard.BOARD_SIZE / 2 - 10, 10),
-            GameBoard.Point(GameBoard.BOARD_SIZE / 2 + 10, 10),
-            GameBoard.Point(GameBoard.BOARD_SIZE / 2 - 10, GameBoard.BOARD_SIZE - 10),
-            GameBoard.Point(GameBoard.BOARD_SIZE / 2 + 10, GameBoard.BOARD_SIZE - 10)
+            GameBoard.Point(x: GameBoard.BOARD_SIZE / 2 - 10, y: 10),
+            GameBoard.Point(x: GameBoard.BOARD_SIZE / 2 + 10, y: 10),
+            GameBoard.Point(x: GameBoard.BOARD_SIZE / 2 - 10, y: GameBoard.BOARD_SIZE - 10),
+            GameBoard.Point(x: GameBoard.BOARD_SIZE / 2 + 10, y: GameBoard.BOARD_SIZE - 10)
         ]
         
         self.startingDirections = [
@@ -25,18 +26,22 @@ public class HulkSmash: GameMap {
         ]
     }
     
+    public required init(from decoder: Decoder) throws {
+        fatalError("init(from:) has not been implemented")
+    }
+    
     private func createPair(x: Int, y: Int) {
-        movingObstacles.append(MovingObstacle(2, 10, x, y, -1, 0));
-        movingObstacles.append(MovingObstacle(2, 10, BOARD_SIZE - (x + 3), y, 1, 0));
+        movingObstacles.append(MovingObstacle(height: 2, width: 10, x: x, y: y, xDir: -1, yDir: 0));
+        movingObstacles.append(MovingObstacle(height: 2, width: 10, x: GameBoard.BOARD_SIZE - (x + 3), y: y, xDir: 1, yDir: 0));
         
         // [
-        obstacles.append(Obstacle(2, 14, 0, y - 2));
-        obstacles.append(Obstacle(2, 2, 2, y - 2));
-        obstacles.append(Obstacle(2, 2, 2, y + 10));
+        obstacles.append(Obstacle(height: 2, width: 14, x: 0, y: y - 2));
+        obstacles.append(Obstacle(height: 2, width: 2, x: 2, y: y - 2));
+        obstacles.append(Obstacle(height: 2, width: 2, x: 2, y: y + 10));
         
         // ]
-        obstacles.append(Obstacle(2, 14, BOARD_SIZE - 3, y - 2));
-        obstacles.append(Obstacle(2, 2, BOARD_SIZE - 5, y - 2));
-        obstacles.append(Obstacle(2, 2, BOARD_SIZE - 5, y + 10));
+        obstacles.append(Obstacle(height: 2, width: 14, x: GameBoard.BOARD_SIZE - 3, y: y - 2));
+        obstacles.append(Obstacle(height: 2, width: 2, x: GameBoard.BOARD_SIZE - 5, y: y - 2));
+        obstacles.append(Obstacle(height: 2, width: 2, x: GameBoard.BOARD_SIZE - 5, y: y + 10));
     }
 }
