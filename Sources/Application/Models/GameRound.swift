@@ -9,7 +9,7 @@ import Foundation
 import KituraWebSocket
 import Dispatch
 
-public class GameRound {
+public class GameRound: Codable {
     public enum State: String, Codable {
         case OPEN // not yet started, still room for players
         case FULL // not started, but no more room for players
@@ -29,8 +29,34 @@ public class GameRound {
     // Properties exposed in JSON representation of object
     public let id: String
     public let nextRoundId: String
-    public var gameState: State = State.OPEN;
-    public let board = GameBoard(map: -1);
+    public var gameState: State = State.OPEN
+    public var board = GameBoard(map: -1)
+    
+    enum CodingKeys: String, CodingKey
+    {
+        case id
+        case nextRoundId
+        case gameState
+        case board
+    }
+    
+    public func encode(to encoder: Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(nextRoundId, forKey: .nextRoundId)
+        try container.encode(gameState, forKey: .gameState)
+        try container.encode(board, forKey: .board)
+    }
+    
+    required public init(from decoder: Decoder) throws
+    {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        nextRoundId = try values.decode(String.self, forKey: .nextRoundId)
+        gameState = try values.decode(State.self, forKey: .gameState)
+        board = try values.decode(GameBoard.self, forKey: .board)
+    }
     
     private var gameRunning: Bool = false
     private var paused: Bool = false

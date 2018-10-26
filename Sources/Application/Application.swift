@@ -12,6 +12,7 @@ public let health = Health()
 public class App {
     let router = Router()
     let cloudEnv = CloudEnv()
+    var allRounds = [String: GameRound]()
 
     public init() throws {
         // Run the metrics initializer
